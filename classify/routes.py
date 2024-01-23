@@ -1,4 +1,4 @@
-from app.classify import bp
+from classify import bp
 from flask import request
 from flask_cors import cross_origin
 from .services.Extract import Extract
