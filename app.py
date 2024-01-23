@@ -8,4 +8,5 @@ def create_app():
     from app.classify import bp as clasify_bp
     app.register_blueprint(clasify_bp, url_prefix='/api/classify')
     
-    app.run(debug=False)
+    if __name__ == '__main__':
+        app.run()
