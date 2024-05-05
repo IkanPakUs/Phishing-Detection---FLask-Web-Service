@@ -12,8 +12,11 @@ import re
 import os
 
 import requests
-from urllib.parse import urlparse, parse_qs
-from datetime import datetime, date
+
+from cryptography import x509
+from urllib.parse import urlparse, parse_qs, urlencode
+from datetime import datetime, date, timezone
+from bs4 import BeautifulSoup
 
 class Extract:
     url = ''
@@ -28,7 +31,7 @@ class Extract:
         based_file = self.extractBasedOnFile()
         based_parameter = self.extractBasedOnParameter()
         based_external_service = self.extractBasedOnExternalService()
-        
+
         feature = {}
         
         feature.update(based_url)
@@ -44,7 +47,7 @@ class Extract:
         full_url = self.url.geturl()
         
         url_symbol = self.extractSymbol(full_url, '_url')
-        qty_tld = {'qty_tld_url': len(tldextract.extract(full_url).suffix)}
+        qty_tld = {'qty_tld_url': len(self.url.netloc)}
         qty_url = {'length_url': len(full_url)}
         is_has_email = {'email_in_url': 1 if re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', full_url) is not None else 0}
         
@@ -83,9 +86,9 @@ class Extract:
     
     def extractBasedOnDirectory(self):
         path = os.path.dirname(self.url.path)
-        
+
         url_symbol = self.extractSymbol(path, '_directory')
-        directory_length = {'directory_length': len(path)}
+        directory_length = {'directory_length': len(path.replace('/', ''))}
         
         url_feature = {}
         url_feature.update(url_symbol)
@@ -110,7 +113,8 @@ class Extract:
         
         url_symbol = self.extractSymbol(params, '_params')
         params_length = {'params_length': len(params)}
-        tld_presents = {'tld_present_params': 1 if re.compile(r'\.([a-zA-Z]{2,})$').search(params) is not None else 0}
+        tld_presents = {'tld_present_params': 1 if bool(
+            re.search(fr'\b{re.escape(self.url.netloc)}\b', params, re.IGNORECASE)) else 0}
         qty_params = {'qty_params': len(parse_qs(self.url.query))}
         
         url_feature = {}
@@ -132,38 +136,37 @@ class Extract:
             spf_records = dns.resolver.resolve(self.url.netloc, 'TXT')
             spf_count = 1 if sum('v=spf' in record.strings for record in spf_records) >= 1 else 0
         except dns.resolver.NoAnswer:
-            spf_count = -1
+            spf_count = 0
         
-        response = requests.get(f"https://ipinfo.io/{url}/json")
+        response = requests.get(f"https://ipinfo.io/{self.url.netloc}/json")
         data = response.json()
         asn = data.get('asn', 'N/A')
         
-        whois_info = whois.whois(url)
+        try:
+            whois_info = whois.whois(self.url.netloc)
+            date_now = date.today()
+            domain_creation = whois_info.creation_date[0] if isinstance(whois_info.creation_date, list) else whois_info.creation_date
+            domain_expired = whois_info.expiration_date[0] if isinstance(whois_info.expiration_date, list) else whois_info.expiration_date
 
-        date_now = date.today()
-        domain_creation = whois_info.creation_date[0] if isinstance(whois_info.creation_date, list) else whois_info.creation_date
-        domain_expired = whois_info.expiration_date[0] if isinstance(whois_info.expiration_date, list) else whois_info.expiration_date
-
-        if (domain_creation is not None):
-            domain_activation = abs((domain_creation.date() - date_now).days)
-        else:
-            domain_activation = -1
-            
-        if (domain_expired is not None):
-            domain_expiration = abs((date_now - domain_expired.date()).days)
-        else:
-            domain_expiration = -1
+            if (domain_creation is not None):
+                domain_activation = abs((domain_creation.date() - date_now).days)
+            else:
+                domain_activation = 0
+                
+            if (domain_expired is not None):
+                domain_expiration = abs((date_now - domain_expired.date()).days)
+            else:
+                domain_expiration = 0
+        except Exception:
+            domain_expiration = 0
+            domain_activation = 0
         
-        resolved_ips = -1
-        resolved_ns4 = -1
+        resolved_ips = 0
+        resolved_ns = 0
         
         try:
             ip_answers = dns.resolver.resolve(self.url.netloc, 'A')
-            resolved_ips = len([answer.address for answer in ip_answers])
-
-            ns_answers = dns.resolver.resolve(self.url.netloc, 'NS')
-            resolved_ns4 = len([answer.target.to_text() for answer in ns_answers if 'ns4' in answer.target.to_text().lower()])
-            
+            resolved_ips = len([answer.address for answer in ip_answers])            
         except dns.resolver.NXDOMAIN:
             pass
         except dns.exception.DNSException as e:
@@ -172,26 +175,36 @@ class Extract:
             pass
             
         try:
+            ns_answers = dns.resolver.resolve(self.url.netloc, 'NS')
+            resolved_ns = len(ns_answers)
+        except dns.resolver.NXDOMAIN:
+            pass
+        except dns.exception.DNSException as e:
+            pass
+        except dns.resolver.NoAnswer:
+            pass
+        
+        try:
             mx_servers = len(dns.resolver.resolve(self.url.netloc, 'MX'))
         except dns.resolver.NoAnswer:
-            mx_servers = -1
+            mx_servers = 0
         
         try:
             answers = dns.resolver.resolve(self.url.netloc, 'A')
             ttl = answers.rrset.ttl
         except dns.resolver.NoAnswer:
-            ttl = -1
+            ttl = 0
         except dns.resolver.NXDOMAIN:
-            ttl = -1
+            ttl = 0
             
         try:
-            cert = ssl.get_server_certificate((url, 443))
-            x509 = ssl.load_certificate(ssl.PEM_cert_to_DER_cert(cert))
-            expiration_date = datetime.datetime.strptime(x509.get_notAfter().decode('ascii'), "%Y%m%d%H%M%SZ")
-            days_left = (expiration_date - datetime.datetime.now()).days
-            tls_ssl = days_left > 0
+            cert = ssl.get_server_certificate((self.url.netloc, 443))
+            cert_data = x509.load_pem_x509_certificate(str.encode(cert))
+            expiration_date = cert_data.not_valid_after_utc
+            days_left = (expiration_date - datetime.now(timezone.utc)).days
+            tls_ssl = 1 if days_left > 0 else 0 
         except Exception as e:
-            tls_ssl = -1
+            tls_ssl = 0
         
         response = requests.get(url)
         redirect = len(response.history)
@@ -203,6 +216,12 @@ class Extract:
         else:
             url_short = 0
             
+        url_query = {'q': 'cache:info:' + url}
+        domain_query = {'q': 'cache:info:' + self.url.netloc}        
+        
+        url_google_index = self.getIsIndexesOnGoogle(url_query)
+        domain_google_index = self.getIsIndexesOnGoogle(domain_query)
+            
         return {
             'time_response': ((dns_end - dns_start) * 1000),
             'domain_spf': spf_count,
@@ -210,15 +229,27 @@ class Extract:
             'time_domain_activation': domain_activation,
             'time_domain_expiration': domain_expiration,
             'qty_ip_resolved': resolved_ips,
-            'qty_nameservers': resolved_ns4,
+            'qty_nameservers': resolved_ns,
             'qty_mx_servers': mx_servers,
             'ttl_hostname': ttl,
             'tls_ssl_certificate': tls_ssl,
             'qty_redirects': redirect,
-            'url_google_index': -1,
-            'domain_google_index': -1,
+            'url_google_index': url_google_index,
+            'domain_google_index':domain_google_index,
             'url_shortened': url_short,
         }
+        
+    def getIsIndexesOnGoogle(self, url):
+        google = "http://www.google.com/search?" + urlencode(url)
+        data = requests.get(google, headers={'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0', 'referer': 'https://www.google.com/'})
+        data.encoding = 'ISO-8859-1'
+        soup = BeautifulSoup(str(data.content), "html.parser")
+        print(soup)
+        try:
+            soup.find(id="rso").find("div").find("div").find("div").find("div").find("a")["href"]
+            return 1
+        except AttributeError:
+            return 0
     
     def extractSymbol(self, url, prefix):
         qty_dot = len(re.findall(r'\.', url))
