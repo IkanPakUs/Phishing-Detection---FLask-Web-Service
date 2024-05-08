@@ -26,7 +26,6 @@ def classify():
 
     extract = Extract(req['website_uri'])
     feature = extract.extractFeature()
-    
     model = Model(model_path)
     prediction = model.predict(feature)
     
