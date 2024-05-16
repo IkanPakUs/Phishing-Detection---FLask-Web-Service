@@ -22,11 +22,10 @@ def classify():
     print(request.headers)
     req = request.json
     
-    model_path = "GBDT"
-
     extract = Extract(req['website_uri'])
     feature = extract.extractFeature()
-    model = Model(model_path)
+    
+    model = Model()
     prediction = model.predict(feature)
     
     phishing_possibility = prediction[0][0]

@@ -8,7 +8,8 @@ from flask import current_app as app
 class Model:
     model = None
     
-    def __init__(self, model_path) -> None:
+    def __init__(self) -> None:
+        model_path = 'GBDT'
         real_path = os.path.join(app.root_path, 'model/' + model_path)
         self.model = tf.keras.models.load_model(real_path)
         
