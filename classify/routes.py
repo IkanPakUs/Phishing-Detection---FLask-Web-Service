@@ -11,9 +11,7 @@ def after_request(response):
     
     header['Access-Control-Allow-Origin'] = '*'
     header['Access-Control-Allow-Headers'] = 'Content-Type'
-    
-    print(header)
-    
+        
     return response
 
 @bp.route('/', methods=['POST'], strict_slashes=False)
@@ -32,6 +30,5 @@ def classify():
 
     return {
         'is_phishing': True if phishing_possibility > .5 else False,
-        'possibility': str(phishing_possibility),
-        'feature': feature
+        'score': str(phishing_possibility),
     }

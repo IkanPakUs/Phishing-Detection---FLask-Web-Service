@@ -9,12 +9,11 @@ class Model:
     model = None
     
     def __init__(self) -> None:
-        model_path = 'GBDT'
+        model_path = 'ANN'
         real_path = os.path.join(app.root_path, 'model/' + model_path)
         self.model = tf.keras.models.load_model(real_path)
         
     def predict(self, feature):
         pd_feature = pd.DataFrame([feature])
-        tfdf_feature = tfdf.keras.pd_dataframe_to_tf_dataset(pd_feature)
         
-        return self.model.predict(tfdf_feature)
+        return self.model.predict(pd_feature)
