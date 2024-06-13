@@ -8,4 +8,4 @@ from classify import bp as clasify_bp
 app.register_blueprint(clasify_bp, url_prefix='/api/classify')
 
 if __name__ == '__main__':
-    app.run()
+    app.run(threaded=True)
