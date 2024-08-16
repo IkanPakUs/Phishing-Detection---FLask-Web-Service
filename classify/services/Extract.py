@@ -147,8 +147,13 @@ class Extract:
         params_length = {'params_length': len(params) if par_length != -1 else -1}
         tld_presents = {'tld_present_params': 1 if bool(re.search(fr'\b{re.escape(self.url.netloc)}\b', params, re.IGNORECASE)) else 0 if par_length != -1 else -1}
         qty_params = {'qty_params': len(parse_qs(self.url.query)) if par_length != -1 else -1}
+        
+        url_symbol = {
+            'qty_underline_params': len(re.findall(r'\_', params)) if par_length != -1 else -1,
+        }
 
         url_feature = {}
+        url_feature.update(url_symbol)
         url_feature.update(params_length)
         url_feature.update(tld_presents)
         url_feature.update(qty_params)
