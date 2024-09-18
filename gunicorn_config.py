@@ -19,7 +19,7 @@ threads = 2
 # Specify your Flask application's entry point (usually the app variable in your app.py).
 # Replace 'app_name' with your actual application's name.
 # You can also specify the Python module that contains your app using the syntax 'module:app'.
-app = "/tmp/8dcd78b945b9ca7 app:app"
+app = "app:app"
 
 # Enable or disable daemon mode. Daemon mode runs Gunicorn in the background.
 daemon = False
