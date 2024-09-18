@@ -24,12 +24,6 @@ app = "app:app"
 # Enable or disable daemon mode. Daemon mode runs Gunicorn in the background.
 daemon = False
 
-# Set the location of Gunicorn's error log.
-errorlog = "/var/log/gunicorn/error.log"  # Adjust the path as needed.
-
-# Set the location of Gunicorn's access log.
-accesslog = "/var/log/gunicorn/access.log"  # Adjust the path as needed.
-
 # Enable access log format. Common options are "combined", "common", "short", and "tiny".
 # You can also specify your custom log format.
 access_log_format = "%(h)s %(l)s %(u)s %(t)s \"%(r)s\" %(s)s %(b)s \"%(f)s\" \"%(a)s\""
