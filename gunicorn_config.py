@@ -3,7 +3,7 @@
 import multiprocessing
 
 # Bind to the IP and port where your application should listen.
-bind = "0.0.0.0:8000"  # Replace with your desired IP and port.
+bind = "0.0.0.0"  # Replace with your desired IP and port.
 
 # Number of Gunicorn worker processes to spawn.
 # Adjust as needed based on your server's resources.
@@ -19,7 +19,7 @@ threads = 2
 # Specify your Flask application's entry point (usually the app variable in your app.py).
 # Replace 'app_name' with your actual application's name.
 # You can also specify the Python module that contains your app using the syntax 'module:app'.
-app = "/tmp/8dcbde80c16e779 app:app"
+app = "/tmp/8dcd78b945b9ca7 app:app"
 
 # Enable or disable daemon mode. Daemon mode runs Gunicorn in the background.
 daemon = False
